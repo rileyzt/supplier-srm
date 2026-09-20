@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPLIER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignmentsCreated SupplierAssignment[] @relation("AssignedBy")
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  country       String
+  city          String?
+  contactPerson String?
+  email         String   @unique
+  phone         String?
+  preferredLang String   @default("en")
+  category      String?
+  isActive      Boolean  @default(true)
+  notes         String?
+  paymentTerms  String?
+  currency      String   @default("CNY")
+  capabilities  String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users       User[]
+  assignments SupplierAssignment[]
+}
+
+model SourcingRequest {
+  id                 String   @id @default(cuid())
+  shopifyOrderId     String   @unique
+  shopifyOrderNumber String   @unique
+  customerName       String?
+  customerEmail      String?
+  customerPhone      String?
+  notes              String?
+  shopifyCreatedAt   DateTime?
+  paymentStatus      String?
+  fulfillmentStatus  String?
+  items              SourcingRequestItem[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SourcingRequestItem {
+  id                   String   @id @default(cuid())
+  sourcingRequestId    String
+  sourcingRequest      SourcingRequest @relation(fields: [sourcingRequestId], references: [id], onDelete: Cascade)
+  shopifyLineItemId    String
+  productTitle         String
+  variantTitle         String?
+  quantity             Int
+  customization        Json?
+  productImageUrl      String?
+  referenceImages      ReferenceImage[]
+
+  selectedAssignmentId String?  @unique
+  selectedAssignment   SupplierAssignment? @relation("SelectedAssignment", fields: [selectedAssignmentId], references: [id], onDelete: SetNull)
+
+  assignments          SupplierAssignment[] @relation("ItemAssignments")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model ReferenceImage {
+  id                    String              @id @default(cuid())
+  sourcingRequestItemId String
+  sourcingRequestItem   SourcingRequestItem @relation(fields: [sourcingRequestItemId], references: [id], onDelete: Cascade)
+  url                   String
+  storageKey            String
+  createdAt             DateTime            @default(now())
+}
+
+enum AssignmentStatus {
+  SENT
+  RESPONDED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model SupplierAssignment {
+  id                    String    @id @default(cuid())
+  sourcingRequestItemId String
+  sourcingRequestItem   SourcingRequestItem @relation("ItemAssignments", fields: [sourcingRequestItemId], references: [id], onDelete: Cascade)
+  selectedForItem       SourcingRequestItem? @relation("SelectedAssignment")
+  supplierId            String
+  supplier              Supplier  @relation(fields: [supplierId], references: [id])
+  assignedByUserId      String?
+  assignedBy            User?     @relation("AssignedBy", fields: [assignedByUserId], references: [id])
+  status                AssignmentStatus @default(SENT)
+  isActive              Boolean   @default(true)
+  assignedAt            DateTime  @default(now())
+
+  quote                 SupplierQuote?
+  productionTracking    ProductionTracking?
+  qcSubmissions         QCSubmission[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([sourcingRequestItemId, supplierId])
+}
+
+enum QuoteStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+enum Availability {
+  AVAILABLE
+  NOT_AVAILABLE
+  PARTIALLY_AVAILABLE
+}
+
+model SupplierQuote {
+  id                String            @id @default(cuid())
+  assignmentId      String            @unique
+  assignment        SupplierAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  availability      Availability      @default(AVAILABLE)
+  price             Decimal?
+  currency          String            @default("CNY")
+  productionDays    Int?
+  estimatedDelivery String?
+  supplierNotes     String?
+  status            QuoteStatus       @default(DRAFT)
+  submittedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+enum ProductionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+model ProductionTracking {
+  id           String           @id @default(cuid())
+  assignmentId String           @unique
+  assignment   SupplierAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  status       ProductionStatus @default(PENDING)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  notes        String?
+  updatedAt    DateTime         @updatedAt
+}
+
+enum QCStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model QCSubmission {
+  id            String             @id @default(cuid())
+  assignmentId  String
+  assignment    SupplierAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  status        QCStatus           @default(SUBMITTED)
+  supplierNotes String?
+  adminNotes    String?
+  photos        QCSubmissionPhoto[]
+  submittedAt   DateTime           @default(now())
+  reviewedAt    DateTime?
+}
+
+model QCSubmissionPhoto {
+  id              String       @id @default(cuid())
+  qcSubmissionId  String
+  qcSubmission    QCSubmission @relation(fields: [qcSubmissionId], references: [id], onDelete: Cascade)
+  url             String
+  createdAt       DateTime     @default(now())
+}
