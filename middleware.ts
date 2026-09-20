@@ -8,7 +8,12 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const user = req.auth?.user;
 
-  // Allow login page without auth
+  // 1. Never intercept NextAuth internal API routes
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
+
+  // 2. Allow login page without auth
   if (pathname === "/login") {
     // If already authenticated as supplier, redirect to dashboard
     if (user && user.role === "SUPPLIER") {
@@ -17,7 +22,7 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // Protect all API routes for supplier
+  // 3. Protect all supplier API routes
   if (pathname.startsWith("/api/supplier") || pathname.startsWith("/api/reference-images")) {
     if (!user || user.role !== "SUPPLIER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +30,7 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // Protect pages: /, /enquiries, /profile
+  // 4. Protect all portal pages: /, /enquiries, /profile
   if (!user || user.role !== "SUPPLIER") {
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -35,6 +40,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

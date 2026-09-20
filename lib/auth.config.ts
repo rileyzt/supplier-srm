@@ -52,8 +52,8 @@ export const authConfig = {
     sessionToken: {
       name:
         process.env.NODE_ENV === "production"
-          ? "__Secure-srm.session-token"
-          : "srm.session-token",
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
