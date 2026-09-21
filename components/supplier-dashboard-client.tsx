@@ -82,7 +82,7 @@ export function SupplierDashboardClient({
           <p className="text-sm text-gray-600 mt-1.5 max-w-2xl leading-relaxed">
             {t(
               "dash.subtitle",
-              "Review incoming sourcing requests from Captain Vault, submit costings, and upload production updates."
+              "Review incoming sourcing requests, submit costings, and upload production updates."
             )}
           </p>
         </div>

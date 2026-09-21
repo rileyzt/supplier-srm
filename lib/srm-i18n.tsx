@@ -127,7 +127,7 @@ const translations: Record<SrmLanguage, Record<string, string>> = {
   zh: {
     // Nav & Layout
     "nav.srmPortal": "SRM 供应商门户",
-    "nav.brand": "Captain Vault",
+    "nav.brand": process.env.NEXT_PUBLIC_PORTAL_NAME || "Partner Operations",
     "nav.dashboard": "控制台首页",
     "nav.enquiries": "询价需求与报价",
     "nav.profile": "工厂档案",
@@ -138,7 +138,7 @@ const translations: Record<SrmLanguage, Record<string, string>> = {
     // Dashboard
     "dash.title": "制造运营协同门户",
     "dash.subtitle":
-      "查看来自 Captain Vault 的采购询价订单，提交出厂单价与交期，协同管理定制球衣生产。",
+      "查看采购询价订单，提交出厂单价与交期，协同管理定制球衣生产。",
     "dash.viewAll": "查看全部需求",
     "dash.stat.pending": "待处理报价",
     "dash.stat.approved": "已中标订单",
@@ -205,7 +205,7 @@ const translations: Record<SrmLanguage, Record<string, string>> = {
     "modal.notesLabel": "工厂工艺与制造备注",
     "modal.notesPlaceholder": "例如：热升华印花+硅胶立体队徽，采用官方联赛定制字体，附赠吊牌包装...",
     "modal.cancel": "取消",
-    "modal.submit": "确认提交报价至 Captain Vault",
+    "modal.submit": "确认提交报价",
     "modal.submitting": "正在提交...",
 
     // Detail Page
@@ -249,7 +249,7 @@ export function SrmI18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<SrmLanguage>("en");
 
   useEffect(() => {
-    const stored = localStorage.getItem("captain_srm_lang") as SrmLanguage;
+    const stored = localStorage.getItem("srm_lang") as SrmLanguage;
     if (stored === "zh" || stored === "en") {
       setLanguageState(stored);
     }
@@ -258,7 +258,7 @@ export function SrmI18nProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = (lang: SrmLanguage) => {
     setLanguageState(lang);
     try {
-      localStorage.setItem("captain_srm_lang", lang);
+      localStorage.setItem("srm_lang", lang);
     } catch {}
   };
 

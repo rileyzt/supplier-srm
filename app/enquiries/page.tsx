@@ -689,7 +689,7 @@ export default function SupplierEnquiriesPage() {
                 >
                   {isSubmitting
                     ? t("modal.submitting", "Submitting...")
-                    : t("modal.submit", "Send Quotation to Captain Vault")}
+                    : t("modal.submit", "Send Quotation")}
                 </button>
               </div>
             </form>
