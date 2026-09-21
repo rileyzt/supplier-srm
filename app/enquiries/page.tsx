@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Package,
   Search,
@@ -11,6 +12,7 @@ import {
   Image as ImageIcon,
   X,
   Send,
+  ExternalLink,
   Loader2,
 } from "lucide-react";
 import { useSrmI18n } from "@/lib/srm-i18n";
@@ -43,6 +45,7 @@ interface FlatEnquiry {
 
 export default function SupplierEnquiriesPage() {
   const { t } = useSrmI18n();
+  const searchParams = useSearchParams();
   const [enquiries, setEnquiries] = useState<FlatEnquiry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,6 +84,21 @@ export default function SupplierEnquiriesPage() {
   useEffect(() => {
     fetchEnquiries();
   }, []);
+
+  // Auto-open quote modal from ?quote= param (dashboard shortcut)
+  useEffect(() => {
+    const quoteId = searchParams.get("quote");
+    if (quoteId && enquiries.length > 0 && !quotingEnquiry) {
+      const target = enquiries.find(
+        (e) => e.assignmentId === quoteId || e.itemId === quoteId
+      );
+      if (target) {
+        openQuoteModal(target);
+        // Clear the query param to avoid re-opening on navigation
+        window.history.replaceState(null, "", "/enquiries");
+      }
+    }
+  }, [searchParams, enquiries]);
 
   const openQuoteModal = (enquiry: FlatEnquiry) => {
     setQuotingEnquiry(enquiry);
@@ -129,6 +147,19 @@ export default function SupplierEnquiriesPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Format camelCase keys to Title Case labels and apply renames
+  const formatSpecLabel = (key: string): string | null => {
+    // Hide boolean flags
+    if (key === "hasNameSet" || key === "hasPatches") return null;
+    // Rename playerName to NameSet
+    if (key === "playerName") return "NameSet";
+    // Convert camelCase to Title Case
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (s) => s.toUpperCase())
+      .trim();
   };
 
   const filteredEnquiries = enquiries.filter((e) => {
@@ -281,13 +312,16 @@ export default function SupplierEnquiriesPage() {
                           {enquiry.customization ? (
                             <div className="flex flex-wrap gap-1.5 max-w-md">
                               {Object.entries(enquiry.customization).map(([k, v]) => {
-                                if (!v || v === "—" || v === "None") return null;
+                                if (!v || v === "" || v === "None") return null;
+                                const label = formatSpecLabel(k);
+                                if (!label) return null;
+                                if (typeof v === "boolean") return null;
                                 return (
                                   <span
                                     key={k}
                                     className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 font-semibold"
                                   >
-                                    <strong>{k}:</strong> {String(v)}
+                                    <strong>{label}:</strong> {String(v)}
                                   </span>
                                 );
                               })}
@@ -344,7 +378,9 @@ export default function SupplierEnquiriesPage() {
                         <td className="py-5 px-5 text-right">
                           <button
                             onClick={() => openQuoteModal(enquiry)}
-                            className={`px-4 py-2 text-xs font-bold rounded-xl transition ${
+                            aria-label={isApproved ? t("enq.btn.viewOrder", "View Order") : hasQuote ? t("enq.btn.updateQuote", "Update Quote") : t("enq.btn.submitQuote", "Submit Quote")}
+                            title={isApproved ? t("enq.btn.viewOrder", "View Order") : hasQuote ? t("enq.btn.updateQuote", "Update Quote") : t("enq.btn.submitQuote", "Submit Quote")}
+                            className={`w-10 h-10 rounded-xl transition flex items-center justify-center ${
                               isApproved
                                 ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
                                 : hasQuote
@@ -352,11 +388,7 @@ export default function SupplierEnquiriesPage() {
                                 : "bg-[#1a365d] text-white hover:bg-[#152c4d] shadow-sm"
                             }`}
                           >
-                            {isApproved
-                              ? t("enq.btn.viewOrder", "View Order")
-                              : hasQuote
-                              ? t("enq.btn.updateQuote", "Update Quote")
-                              : t("enq.btn.submitQuote", "Submit Quote")}
+                            <ExternalLink className="w-4.5 h-4.5" />
                           </button>
                         </td>
                       </tr>
@@ -428,13 +460,16 @@ export default function SupplierEnquiriesPage() {
                     {enquiry.customization && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {Object.entries(enquiry.customization).map(([k, v]) => {
-                          if (!v || v === "—" || v === "None") return null;
+                          if (!v || v === "" || v === "None") return null;
+                          const label = formatSpecLabel(k);
+                          if (!label) return null;
+                          if (typeof v === "boolean") return null;
                           return (
                             <span
                               key={k}
                               className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-medium"
                             >
-                              <strong>{k}:</strong> {String(v)}
+                              <strong>{label}:</strong> {String(v)}
                             </span>
                           );
                         })}
@@ -479,7 +514,9 @@ export default function SupplierEnquiriesPage() {
 
                       <button
                         onClick={() => openQuoteModal(enquiry)}
-                        className={`px-4 py-2 text-xs font-bold rounded-xl transition ${
+                        aria-label={isApproved ? t("enq.btn.viewOrder", "View Order") : hasQuote ? t("enq.btn.updateQuote", "Update Quote") : t("enq.btn.submitQuote", "Submit Quote")}
+                        title={isApproved ? t("enq.btn.viewOrder", "View Order") : hasQuote ? t("enq.btn.updateQuote", "Update Quote") : t("enq.btn.submitQuote", "Submit Quote")}
+                        className={`w-10 h-10 rounded-xl transition flex items-center justify-center ${
                           isApproved
                             ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
                             : hasQuote
@@ -487,11 +524,7 @@ export default function SupplierEnquiriesPage() {
                             : "bg-[#1a365d] text-white hover:bg-[#152c4d] shadow-sm"
                         }`}
                       >
-                        {isApproved
-                          ? t("enq.btn.viewOrder", "View Order")
-                          : hasQuote
-                          ? t("enq.btn.updateQuote", "Update Quote")
-                          : t("enq.btn.submitQuote", "Submit Quote")}
+                        <ExternalLink className="w-4.5 h-4.5" />
                       </button>
                     </div>
                   </div>

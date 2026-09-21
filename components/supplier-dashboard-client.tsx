@@ -7,6 +7,7 @@ import {
   Truck,
   CheckCircle2,
   ArrowRight,
+  ExternalLink,
   Package,
 } from "lucide-react";
 import { useSrmI18n } from "@/lib/srm-i18n";
@@ -174,10 +175,12 @@ export function SupplierDashboardClient({
                 </div>
 
                 <Link
-                  href={`/enquiries/${asgn.assignmentId}`}
-                  className="px-4 py-2 bg-[#1a365d] hover:bg-[#152c4d] text-white text-xs font-bold rounded-xl transition text-center"
+                  href={`/enquiries?quote=${asgn.assignmentId}`}
+                  className="w-10 h-10 bg-[#1a365d] hover:bg-[#152c4d] text-white rounded-xl transition flex items-center justify-center shadow-sm"
+                  aria-label={t("dash.submitQuote", "Submit Quote")}
+                  title={t("dash.submitQuote", "Submit Quote")}
                 >
-                  {t("dash.submitQuote", "Submit Quote")}
+                  <ExternalLink className="w-4.5 h-4.5" />
                 </Link>
               </div>
             ))}
