@@ -60,6 +60,9 @@ const translations: Record<SrmLanguage, Record<string, string>> = {
     "enq.btn.viewOrder": "View Order",
     "enq.btn.updateQuote": "Update Quote",
     "enq.btn.submitQuote": "Submit Quote",
+    "enq.btn.manageProduction": "Manage Production",
+    "enq.status.prodCompleted": "Ready for QC",
+    "enq.status.inProd": "In Production",
     "enq.mobile.lead": "Lead Time",
     "enq.mobile.cost": "Unit Cost",
 
@@ -173,6 +176,9 @@ const translations: Record<SrmLanguage, Record<string, string>> = {
     "enq.btn.viewOrder": "查看订单",
     "enq.btn.updateQuote": "修改报价",
     "enq.btn.submitQuote": "提交报价",
+    "enq.btn.manageProduction": "管理生产",
+    "enq.status.prodCompleted": "已完工待质检",
+    "enq.status.inProd": "生产中",
     "enq.mobile.lead": "生产周期",
     "enq.mobile.cost": "出厂单价",
 

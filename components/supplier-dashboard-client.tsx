@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ExternalLink,
   Package,
+  Wrench,
 } from "lucide-react";
 import { useSrmI18n } from "@/lib/srm-i18n";
 import type { FlatSupplierEnquiry, SupplierOption } from "@/lib/sourcing";
@@ -36,6 +37,7 @@ export function SupplierDashboardClient({
       color: "bg-amber-500",
       textColor: "text-amber-600",
       bgLight: "bg-amber-50",
+      href: "/enquiries?tab=PENDING",
     },
     {
       label: t("dash.stat.approved", "Approved Orders"),
@@ -44,6 +46,7 @@ export function SupplierDashboardClient({
       color: "bg-emerald-500",
       textColor: "text-emerald-600",
       bgLight: "bg-emerald-50",
+      href: "/enquiries?tab=APPROVED",
     },
     {
       label: t("dash.stat.inProduction", "In Production"),
@@ -52,6 +55,7 @@ export function SupplierDashboardClient({
       color: "bg-blue-500",
       textColor: "text-blue-600",
       bgLight: "bg-blue-50",
+      href: "/enquiries?tab=APPROVED",
     },
     {
       label: t("dash.stat.total", "Total Requests"),
@@ -60,6 +64,7 @@ export function SupplierDashboardClient({
       color: "bg-purple-500",
       textColor: "text-purple-600",
       bgLight: "bg-purple-50",
+      href: "/enquiries?tab=ALL",
     },
   ];
 
@@ -95,23 +100,108 @@ export function SupplierDashboardClient({
         </Link>
       </div>
 
-      {/* Stats Cards with larger readable typography */}
+      {/* Stats Cards: Clickable interactive navigation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {stats.map((stat) => (
-          <div
+          <Link
             key={stat.label}
-            className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center justify-between"
+            href={stat.href}
+            className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex items-center justify-between hover:border-[#1a365d] hover:shadow-md transition group"
           >
             <div>
-              <p className="text-sm font-semibold text-gray-500">{stat.label}</p>
+              <p className="text-sm font-semibold text-gray-500 group-hover:text-gray-900 transition">{stat.label}</p>
               <p className="text-3xl font-extrabold text-gray-900 mt-1.5">{stat.value}</p>
             </div>
-            <div className={`w-12 h-12 rounded-2xl ${stat.bgLight} flex items-center justify-center`}>
+            <div className={`w-12 h-12 rounded-2xl ${stat.bgLight} flex items-center justify-center group-hover:scale-105 transition`}>
               <stat.icon className={`w-6 h-6 ${stat.textColor}`} />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
+
+      {/* Active Production Orders Section */}
+      {approvedQuotes.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                In Production & Ready for QC
+              </h2>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                {approvedQuotes.length} Active
+              </span>
+            </div>
+            <Link
+              href="/enquiries?tab=APPROVED"
+              className="text-sm font-bold text-[#1a365d] hover:underline flex items-center gap-1.5"
+            >
+              View all approved ({approvedQuotes.length}) <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {approvedQuotes.slice(0, 4).map((asgn) => {
+              const prodStatus = asgn.productionTracking?.status;
+              return (
+                <div
+                  key={asgn.assignmentId}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-4">
+                    {asgn.productImageUrl ? (
+                      <img
+                        src={asgn.productImageUrl}
+                        alt={asgn.productTitle}
+                        className="w-14 h-14 rounded-xl object-cover bg-gray-100 border border-gray-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <Package className="w-6 h-6" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900 text-base">{asgn.productTitle}</span>
+                        <span className="text-xs font-bold text-[#1a365d] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          Order {asgn.orderNumber}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 font-medium flex items-center gap-3">
+                        <span>Qty: <strong>{asgn.quantity} pcs</strong></span>
+                        {asgn.quote && (
+                          <span>
+                            Approved: <strong>{asgn.quote.currency} {asgn.quote.price}</strong> ({asgn.quote.productionDays || 3} days)
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          prodStatus === "COMPLETED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}>
+                          {prodStatus === "COMPLETED" ? "Ready for QC" : "In Production"}
+                        </span>
+                      </div>
+                      {asgn.productionTracking?.notes && (
+                        <p className="text-xs text-gray-600 mt-1.5 italic bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                          Latest Note: {asgn.productionTracking.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/enquiries?tab=APPROVED&manageProduction=${asgn.assignmentId}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm flex-shrink-0"
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    <span>Manage Production</span>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Action Items: Pending Quotations */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -125,7 +215,7 @@ export function SupplierDashboardClient({
             </span>
           </div>
           <Link
-            href="/enquiries"
+            href="/enquiries?tab=PENDING"
             className="text-sm font-bold text-[#1a365d] hover:underline flex items-center gap-1.5"
           >
             {t("dash.viewAll", "View all")} ({pendingQuotes.length}){" "}
@@ -152,35 +242,28 @@ export function SupplierDashboardClient({
                     <img
                       src={asgn.productImageUrl}
                       alt={asgn.productTitle}
-                      className="w-14 h-14 rounded-xl object-cover bg-gray-100 border border-gray-200"
+                      className="w-14 h-14 rounded-xl object-cover bg-gray-100 border border-gray-200 flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                    <div className="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
                       <Package className="w-6 h-6" />
                     </div>
                   )}
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">{asgn.productTitle}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {t("dash.order", "Order")}:{" "}
-                      <span className="font-semibold text-gray-800">{asgn.orderNumber}</span> •{" "}
-                      {t("dash.qty", "Qty")}:{" "}
-                      <span className="font-semibold text-gray-800">{asgn.quantity}</span> •{" "}
-                      {t("dash.variant", "Variant")}:{" "}
-                      <span className="font-semibold text-gray-800">
-                        {asgn.variantTitle || "Default"}
-                      </span>
-                    </p>
+                    <div className="font-bold text-gray-900 text-base">{asgn.productTitle}</div>
+                    <div className="text-xs text-gray-500 mt-1 font-medium">
+                      Order <span className="font-bold text-[#1a365d]">{asgn.orderNumber}</span> •{" "}
+                      {asgn.variantTitle || "Default"} • Qty: <strong>{asgn.quantity} pcs</strong>
+                    </div>
                   </div>
                 </div>
 
                 <Link
                   href={`/enquiries?quote=${asgn.assignmentId}`}
-                  className="w-10 h-10 bg-[#1a365d] hover:bg-[#152c4d] text-white rounded-xl transition flex items-center justify-center shadow-sm"
-                  aria-label={t("dash.submitQuote", "Submit Quote")}
-                  title={t("dash.submitQuote", "Submit Quote")}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1a365d] hover:bg-[#152c4d] text-white text-xs font-bold rounded-xl transition shadow-sm flex-shrink-0"
                 >
-                  <ExternalLink className="w-4.5 h-4.5" />
+                  <span>{t("dash.submitQuote", "Submit Quote")}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
               </div>
             ))}

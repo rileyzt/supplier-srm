@@ -190,7 +190,7 @@ export async function submitSupplierQuote(
   try {
     const assignment = await prisma.supplierAssignment.findUnique({
       where: { id: assignmentId },
-      select: { id: true, supplierId: true },
+      select: { id: true, supplierId: true, status: true },
     });
 
     if (!assignment) {
@@ -203,6 +203,15 @@ export async function submitSupplierQuote(
         success: false,
         error: "Forbidden: You do not own this assignment",
         status: 403,
+      };
+    }
+
+    // STRICT PREVENT QUOTE RE-SUBMISSION ON APPROVED ORDERS
+    if (assignment.status === "APPROVED") {
+      return {
+        success: false,
+        error: "Quotation has already been approved and cannot be resubmitted",
+        status: 400,
       };
     }
 
@@ -242,5 +251,139 @@ export async function submitSupplierQuote(
   } catch (err) {
     console.error("Database submitSupplierQuote error:", err);
     return { success: false, error: "Failed to save quotation to database", status: 500 };
+  }
+}
+
+export interface UpdateProductionInput {
+  status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  notes?: string;
+  qcNotes?: string;
+  qcPhotos?: { url: string; storageKey?: string }[];
+}
+
+export async function updateProductionTracking(
+  assignmentId: string,
+  supplierId: string,
+  input: UpdateProductionInput
+): Promise<{ success: boolean; error?: string; status?: number; data?: any }> {
+  if (!process.env.DATABASE_URL) {
+    return { success: true };
+  }
+
+  try {
+    const assignment = await prisma.supplierAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        productionTracking: true,
+      },
+    });
+
+    if (!assignment) {
+      return { success: false, error: "Assignment not found", status: 404 };
+    }
+
+    // STRICT SERVER-SIDE IDOR CHECK: Supplier can ONLY manage their own assignments
+    if (assignment.supplierId !== supplierId) {
+      return {
+        success: false,
+        error: "Forbidden: You do not own this assignment",
+        status: 403,
+      };
+    }
+
+    // Only approved assignments can manage production
+    if (assignment.status !== "APPROVED") {
+      return {
+        success: false,
+        error: "Cannot manage production: assignment is not approved",
+        status: 400,
+      };
+    }
+
+    const currentTracking = assignment.productionTracking;
+    const newStatus = input.status || currentTracking?.status || "IN_PROGRESS";
+    const now = new Date();
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Upsert ProductionTracking record
+      const updatedTracking = await tx.productionTracking.upsert({
+        where: { assignmentId },
+        create: {
+          assignmentId,
+          status: newStatus,
+          startedAt: newStatus === "IN_PROGRESS" || newStatus === "COMPLETED" ? now : null,
+          completedAt: newStatus === "COMPLETED" ? now : null,
+          notes: input.notes !== undefined ? input.notes : "Production started",
+        },
+        update: {
+          status: newStatus,
+          startedAt: currentTracking?.startedAt || (newStatus === "IN_PROGRESS" || newStatus === "COMPLETED" ? now : null),
+          completedAt: newStatus === "COMPLETED" ? (currentTracking?.completedAt || now) : null,
+          notes: input.notes !== undefined ? input.notes : undefined,
+        },
+      });
+
+      // 2. Create or update QC Submission if status is COMPLETED or photos/qcNotes are attached
+      let qcRecord = null;
+      if (newStatus === "COMPLETED" || (input.qcPhotos && input.qcPhotos.length > 0) || input.qcNotes) {
+        const existingQC = await tx.qCSubmission.findFirst({
+          where: { assignmentId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (existingQC) {
+          qcRecord = await tx.qCSubmission.update({
+            where: { id: existingQC.id },
+            data: {
+              status: existingQC.status === "APPROVED" ? "APPROVED" : "SUBMITTED",
+              supplierNotes: input.qcNotes || input.notes || existingQC.supplierNotes,
+              submittedAt: existingQC.submittedAt || now,
+              ...(input.qcPhotos && input.qcPhotos.length > 0
+                ? {
+                    photos: {
+                      create: input.qcPhotos.map((p) => ({
+                        url: p.url,
+                        storageKey: p.storageKey || `qc/${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                      })),
+                    },
+                  }
+                : {}),
+            },
+            include: { photos: true },
+          });
+        } else {
+          qcRecord = await tx.qCSubmission.create({
+            data: {
+              assignmentId,
+              status: "SUBMITTED",
+              supplierNotes: input.qcNotes || input.notes || "Production completed, ready for QC review.",
+              submittedAt: now,
+              ...(input.qcPhotos && input.qcPhotos.length > 0
+                ? {
+                    photos: {
+                      create: input.qcPhotos.map((p) => ({
+                        url: p.url,
+                        storageKey: p.storageKey || `qc/${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                      })),
+                    },
+                  }
+                : {}),
+            },
+            include: { photos: true },
+          });
+        }
+      }
+
+      return { tracking: updatedTracking, qc: qcRecord };
+    });
+
+    return { success: true, data: result };
+  } catch (err: any) {
+    console.error("Database updateProductionTracking error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to update production tracking",
+      status: 500,
+    };
   }
 }

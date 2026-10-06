@@ -156,45 +156,50 @@ model SupplierQuote {
 }
 
 enum ProductionStatus {
-  PENDING
+  NOT_STARTED
   IN_PROGRESS
   COMPLETED
-  DELAYED
 }
 
 model ProductionTracking {
   id           String           @id @default(cuid())
   assignmentId String           @unique
   assignment   SupplierAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  status       ProductionStatus @default(PENDING)
+  status       ProductionStatus @default(NOT_STARTED)
   startedAt    DateTime?
   completedAt  DateTime?
   notes        String?
+  createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 }
 
 enum QCStatus {
+  PENDING
   SUBMITTED
   APPROVED
   REJECTED
+  MORE_PHOTOS_REQUESTED
 }
 
 model QCSubmission {
-  id            String             @id @default(cuid())
+  id            String    @id @default(cuid())
   assignmentId  String
   assignment    SupplierAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  status        QCStatus           @default(SUBMITTED)
+  status        QCStatus  @default(PENDING)
   supplierNotes String?
   adminNotes    String?
-  photos        QCSubmissionPhoto[]
-  submittedAt   DateTime           @default(now())
+  photos        QCPhoto[]
+  submittedAt   DateTime?
   reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
-model QCSubmissionPhoto {
+model QCPhoto {
   id              String       @id @default(cuid())
   qcSubmissionId  String
   qcSubmission    QCSubmission @relation(fields: [qcSubmissionId], references: [id], onDelete: Cascade)
   url             String
-  createdAt       DateTime     @default(now())
+  storageKey      String
+  uploadedAt      DateTime     @default(now())
 }

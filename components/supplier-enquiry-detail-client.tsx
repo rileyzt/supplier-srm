@@ -12,6 +12,7 @@ import {
   Camera,
   Eye,
   Info,
+  Wrench,
 } from "lucide-react";
 import { useSrmI18n } from "@/lib/srm-i18n";
 import type { FlatSupplierEnquiry } from "@/lib/sourcing";
@@ -29,6 +30,7 @@ export function SupplierEnquiryDetailClient({
   const isApproved = enquiry.status === "APPROVED";
   const hasQuote = !!enquiry.quote && enquiry.quote.price != null;
   const refImages = enquiry.referenceImages || [];
+  const prodStatus = enquiry.productionTracking?.status;
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -67,7 +69,11 @@ export function SupplierEnquiryDetailClient({
           {isApproved ? (
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-sm">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              {t("enq.status.approved", "Approved & Awarded")}
+              {prodStatus === "COMPLETED"
+                ? "Production Completed / Ready for QC"
+                : prodStatus === "IN_PROGRESS"
+                ? "In Production"
+                : "Approved & Awarded"}
             </span>
           ) : hasQuote ? (
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-50 text-purple-800 border border-purple-200 font-bold text-sm">
@@ -135,12 +141,12 @@ export function SupplierEnquiryDetailClient({
             </div>
           </div>
 
-          {/* Reference Photos Gallery (Up to 5 images) */}
+          {/* Reference Photos Gallery */}
           <div className="bg-white rounded-3xl p-7 border border-gray-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2.5">
                 <Camera className="w-5 h-5 text-[#1a365d]" />
-                {t("detail.refPhotos", "Reference Photos & Details (Up to 5 images)")}
+                {t("detail.refPhotos", "Reference Photos & Details")}
               </h2>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-[#1a365d] border border-blue-200">
                 {refImages.length > 0 ? `${refImages.length} images` : "1 image"}
@@ -197,7 +203,7 @@ export function SupplierEnquiryDetailClient({
             {enquiry.customization && Object.keys(enquiry.customization).length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {Object.entries(enquiry.customization).map(([k, v]) => {
-                  if (!v || v === "—") return null;
+                  if (!v || v === "" || v === "None" || typeof v === "boolean") return null;
                   return (
                     <div
                       key={k}
@@ -219,11 +225,11 @@ export function SupplierEnquiryDetailClient({
           </div>
         </div>
 
-        {/* Right Col: Factory Quotation Summary & Breakdown */}
+        {/* Right Col: Factory Quotation Summary & Production Actions */}
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-7 border border-gray-200 shadow-sm space-y-5">
             <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider">
-              {t("detail.quoteSummary", "Quotation Summary")}
+              {isApproved ? "Approved Order Details" : t("detail.quoteSummary", "Quotation Summary")}
             </h2>
 
             {enquiry.quote ? (
@@ -270,15 +276,54 @@ export function SupplierEnquiryDetailClient({
               </div>
             )}
 
-            <Link
-              href="/supplier/enquiries"
-              className="w-full py-3.5 bg-[#1a365d] hover:bg-[#152c4d] text-white text-sm font-bold rounded-xl text-center block transition shadow-sm"
-            >
-              {hasQuote
-                ? t("enq.btn.updateQuote", "Update Quotation on Enquiries Table")
-                : t("enq.btn.submitQuote", "Submit Quotation Now")}
-            </Link>
+            {/* SEPARATE PRODUCTION AND QUOTATION ACTIONS */}
+            {isApproved ? (
+              <Link
+                href={`/enquiries?tab=APPROVED&manageProduction=${enquiry.assignmentId}`}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl text-center flex items-center justify-center gap-2 transition shadow-sm"
+              >
+                <Wrench className="w-4 h-4" />
+                <span>Manage Production</span>
+              </Link>
+            ) : (
+              <Link
+                href={`/enquiries?quote=${enquiry.assignmentId}`}
+                className="w-full py-3.5 bg-[#1a365d] hover:bg-[#152c4d] text-white text-sm font-bold rounded-xl text-center block transition shadow-sm"
+              >
+                {hasQuote
+                  ? t("enq.btn.updateQuote", "Update Quotation")
+                  : t("enq.btn.submitQuote", "Submit Quotation Now")}
+              </Link>
+            )}
           </div>
+
+          {/* Production Progress Card if Approved */}
+          {isApproved && enquiry.productionTracking && (
+            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Production Status
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${
+                  prodStatus === "COMPLETED"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-blue-50 text-blue-800 border border-blue-200"
+                }`}>
+                  {prodStatus === "COMPLETED" ? "Ready for QC" : "In Production"}
+                </span>
+                {enquiry.productionTracking.startedAt && (
+                  <span className="text-[11px] text-gray-400">
+                    Started: {new Date(enquiry.productionTracking.startedAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              {enquiry.productionTracking.notes && (
+                <p className="text-xs text-gray-600 italic bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                  "{enquiry.productionTracking.notes}"
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
